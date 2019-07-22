@@ -2,8 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter/services.dart';
+import 'package:multi_image_picker/multi_image_picker.dart';
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart';
 
 //用户变量
 String uid;
@@ -140,22 +145,55 @@ Future editRemarks(orderNo,_remarks) async{
   return res;
 }
 
+// 相片处理
+Future addImage(orderNo,orderImages) async{
+  //APP交互变量
+  List imgLists = [];                                      //post图片
+  // print("图片传递");
+  // ByteData byteData = await orderImages[0].requestOriginal();
+  // List<int> imageData = byteData.buffer.asUint8List();
+  for(int i = 0;i<orderImages.length;i++){
+    //获得一个uuud码用于给图片命名
+    var time = new DateTime.now().millisecondsSinceEpoch;
+    var imgName =  'img_$orderNo$time';
+    //请求原始图片数据
+    ByteData byteData = await orderImages[i].requestOriginal();
+    //获取图片数据，并转换成uint8List类型
+    List<int> imageData = byteData.buffer.asUint8List();
+    print('开始压缩第$i张图片');
+    //通过图片压缩插件进行图片压缩
+    var result = await FlutterImageCompress.compressWithList(imageData,quality:100);
+    //获得应用临时目录路径
+    final Directory _directory = await getTemporaryDirectory();
+    final Directory _imageDirectory = await new Directory('${_directory.path}/image/') .create(recursive: true);
+    var _path = _imageDirectory.path;
+    print('本次获得路径：${_imageDirectory.path}');
+    //将压缩的图片暂时存入应用缓存目录
+    File imageFile = new File('${_path}$imgName.png')..writeAsBytesSync(result);
+    print('图片$i的 本地路径是：${imageFile.path}');
+    // print(imageFile);
+    var imgMap = {imgName,imageData};
+    imgLists.add(imgMap);
+    print(imgMap);
+  }
+  return imgLists;
+}
+
 //相片上传
-Future postPhoto(image) async{
-  String path = image.path;
-  var name = path.substring(path.lastIndexOf("/") + 1, path.length);
+Future postPhoto(orderNo,imgLists) async{
   FormData formData = new FormData.from({
-    "file": new UploadFileInfo(new File(path), name),
+    "file":imgLists,
     "userId": uid,
-    "token": token
+    "token": token,
+    "orderNo":orderNo
   });
-  return formData;
-  // Response response;
-  // Dio dio =new Dio();
-  // response =await dio.post('后端接口',data: formData);
-  // if(response.statusCode == 200){
-  //   return response.data;
-  // }else{
-  //   throw Exception('后端接口异常');
-  // }
+  // return formData;
+  Response response;
+  Dio dio =new Dio();
+  response =await dio.post('',data: formData);
+  if(response.statusCode == 200){
+    return response;
+  }else{
+    throw Exception('后端接口异常');
+  }
 }

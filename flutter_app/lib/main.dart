@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_app/SplashPage.dart';
+import 'package:flutter_app/test.dart';
 
 void main() => runApp(new MyApp());
  

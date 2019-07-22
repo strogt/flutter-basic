@@ -9,18 +9,19 @@ class GoodsLists extends StatefulWidget {
 
 class _GoodsListsState extends  State<GoodsLists>{
   //页面参数                                          
-  ScrollController _scrollController = ScrollController(); //listview的控制器
+  ScrollController _scrollController = ScrollController();  //listview的控制器
   // bool _allCur =true;                                      //全部
-  bool _cur = false;                                       //已服务
-  bool _unCur = true;                                      //未服务 
-  bool isLoading = true;                                   //是否正在加载数据
-  String _keyWord;                                         //搜索关键字
-  int _type = 1;                                           //服务类型  1：待服务 2：已服务
-  int _page = 1;                                           //页数 
-  int _pageNum = 20;                                       //每页数量
-  bool _isEnd =false;                                      //是否结束
-  List list;                                               //视图数据
-  var _userData;                                           //用户信息
+  bool _cur = false;                                        //已服务
+  bool _unCur = true;                                       //未服务 
+  bool isLoading = true;                                    //是否正在加载数据
+  String _keyWord = '请输入订单号搜索';                      //搜索关键字
+  int _type = 1;                                            //服务类型  1：待服务 2：已服务
+  int _page = 1;                                            //页数 
+  int _pageNum = 20;                                        //每页数量
+  bool _isEnd =false;                                       //是否结束
+  List list;                                                //视图数据
+  var _userData;                                            //用户信息
+  bool _isShow = false;
 
   // 页面初始化
   @override
@@ -48,6 +49,21 @@ class _GoodsListsState extends  State<GoodsLists>{
         });
       },
     );
+  }
+
+  void searchOrder(){
+    getGoodsInfo(_keyWord).then((res){
+      if(res['orderNo'] == _keyWord){
+        Navigator.push(context,new MaterialPageRoute(
+          builder: (context)=> new GoodsInfo(infoData: res)
+        ));
+      }else{
+        setState(() {
+         list = null; 
+         _isShow =true;
+        });
+      }
+    });
   }                      
 
   //页面方法
@@ -58,12 +74,12 @@ class _GoodsListsState extends  State<GoodsLists>{
 
   //待服务
   void _unCurTabDate(){
-    print("待服务");
     _type = 1;
     _page = 1;
     getLists(_type,_page,_pageNum).then(
       (res){ 
         setState(() {
+          _isShow = false;
           _unCur = true;
           _cur = false;
           _isEnd = res['is_end']; 
@@ -76,12 +92,12 @@ class _GoodsListsState extends  State<GoodsLists>{
 
   //已服务
   void _curTabDate(){
-    print("已服务");
     _type = 2;
     _page = 1;
     getLists(_type,_page,_pageNum).then(
       (res){ 
         setState(() {
+          _isShow = false;
           _unCur = false;
           _cur = true;
           _isEnd = res['is_end']; 
@@ -147,8 +163,11 @@ class _GoodsListsState extends  State<GoodsLists>{
           children: <Widget>[
             new TextField(
               onChanged: (value){
-                _keyWord = value;
-                print(_keyWord);
+                if(value.length == 0){
+                  _keyWord = '请输入订单号搜索';
+                }else{
+                  _keyWord = value;
+                }
               },
               //光标颜色
               cursorColor: Color.fromARGB(255, 239, 96, 62),
@@ -175,7 +194,7 @@ class _GoodsListsState extends  State<GoodsLists>{
               child: new MaterialButton(
                 textColor: Colors.white,
                 child: new Text("搜索",style: TextStyle(fontSize: 16.0),),
-                onPressed: (){print("搜索");},
+                onPressed: searchOrder,
               ),
             )
           ],
@@ -310,7 +329,33 @@ class _GoodsListsState extends  State<GoodsLists>{
       );
       return content;
     }else{
-      return new Container();
+      return new Container(
+        margin: EdgeInsets.only(top: 100),
+        child: new Center(
+          child:new Column(
+            children: <Widget>[
+              // new Text('搜索不到$_keyWord订单'),
+              new RichText(
+                text: new TextSpan(
+                  text: '搜索不到 ',
+                  style: TextStyle(color: UnCurColor),
+                  children: <TextSpan>[
+                    new TextSpan(
+                      text: _keyWord,
+                      style: TextStyle(color: ThemeColor)
+                    ),
+                    new TextSpan(
+                      text:' 订单' ,
+                      style: TextStyle(color: UnCurColor),
+                    )
+                  ]
+                ),
+              ),
+              new Text('请检查订单号是否输入正确')
+            ],
+          ),
+        ),
+      );
     }
   }
 
@@ -383,19 +428,27 @@ class _GoodsListsState extends  State<GoodsLists>{
               child: new ListView(
                 controller: _scrollController,
                 children: <Widget>[
-                  listWidget(),
+                   listWidget(),
                   new Offstage(
-                    offstage: _isEnd,
-                    child: new Center(
-                     child: new Text("上拉加载",style: TextStyle(fontSize: ContentSize),),
+                    offstage: _isShow,
+                    child: new Column(
+                      children: <Widget>[
+                        new Offstage(
+                          offstage: _isEnd,
+                          child: new Center(
+                          child: new Text("上拉加载",style: TextStyle(fontSize: ContentSize),),
+                          ),
+                        ),
+                        new Offstage(
+                          offstage: !_isEnd,
+                          child: new Center(
+                          child: new Text("暂无更多数据",style: TextStyle(fontSize: ContentSize),),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  new Offstage(
-                    offstage: !_isEnd,
-                    child: new Center(
-                     child: new Text("暂无更多数据",style: TextStyle(fontSize: ContentSize),),
-                    ),
-                  ),
+                  
                 ],
               ),
             ) 

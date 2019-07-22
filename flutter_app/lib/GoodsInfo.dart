@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+// import 'package:image_picker/image_picker.dart';
 import 'package:flutter_app/common.dart';
+import 'package:flutter/services.dart';
+import 'package:multi_image_picker/multi_image_picker.dart';
 
 class GoodsInfo extends StatefulWidget {
   // 用来储存GoodsLists传递过来的值
@@ -17,12 +19,15 @@ class _GoodsInfoState extends State<GoodsInfo> {
   _GoodsInfoState({Key key, @required this.infoData});
 
   //页面数据
-  String  orderNo;                                         //订单编号
+  String  orderNo;                                        //订单编号
   String _remarks = ' ';                                  //编辑内容
   bool _isEdit;                                           //编辑提示显示 
   bool _isTextChange;                                     //编辑内容是否改变
   String _serviceText;                                    //待服务或者已服务
   List<Widget> _infoImages = [];                          //添加图片List必须加[]
+  List<Asset> orderImages = List<Asset>();
+  String _error;
+
 
   //页面函数
   //初始化
@@ -34,11 +39,11 @@ class _GoodsInfoState extends State<GoodsInfo> {
     if(infoData['img_list']!= null){
       for(var item in infoData['img_list']){
         _infoImages.add(
-          new Image.network(item,width: 120.0)
+          new Image.network('https:'+item,width: 120.0,height: 160.0,fit: BoxFit.cover,)
         );
       }
     }
-
+  
     if(_serviceText == '待服务'){
       _isEdit =  false;
       _isTextChange = true;
@@ -48,31 +53,55 @@ class _GoodsInfoState extends State<GoodsInfo> {
     }
   }
 
-  //相册
-  _openGallery() async {
-    var image = await ImagePicker.pickImage(source: ImageSource.gallery);
-    setState(() {
-      _infoImages.add(new Image.file(image,width: 120.0));
-      postPhoto(image).then((res){
-        print(res);
-      });
-    });
-  }
-
-  //相册widget
-  Widget imagesWidget(){
+  //多图片选择器
+  Widget imgListView() {
     List<Widget> contentList = [];
     Widget content;
+    //订单图片
     for (var item in _infoImages) {
       contentList.add(item);
     }
-    contentList.add(new GestureDetector(onTap:_openGallery,child: new Image.asset('images/add_img.png',fit: BoxFit.none,width: 120.0,),));
+    // 选择的图片
+    for (var item in orderImages) {
+      Asset asset = item;
+      var asssetWidget = AssetThumb(
+        asset: asset,
+        width: 120,
+        height: 160,
+      );
+      contentList.add(asssetWidget);
+    }
+    contentList.add(new GestureDetector(onTap:loadAssets,child: new Image.asset('images/add_img.png',fit: BoxFit.none,width: 120.0,height: 160.0,),));
     content = new Wrap(
       spacing: 2.0,
       runSpacing: 2.0,
       children: contentList, 
     );
     return content;
+  }
+
+  Future<void> loadAssets() async {
+    List<Asset> resultList;
+    String error;
+
+    try {
+      resultList = await MultiImagePicker.pickImages(
+        maxImages: 9,
+        enableCamera: false,
+      );
+      
+    } on PlatformException catch (e) {
+      error = e.message;
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      for(var item in resultList){
+        orderImages.add(item);
+      }
+      if (error == null) _error = 'No Error Dectected';
+    });
   }
 
   Widget goodsInfoWidget(){
@@ -292,7 +321,7 @@ class _GoodsInfoState extends State<GoodsInfo> {
                             ],
                           ),
                           new Divider(),
-                           imagesWidget(),
+                          imgListView(),
                         ],
                       ),
                     ) 
@@ -310,8 +339,12 @@ class _GoodsInfoState extends State<GoodsInfo> {
                           color:ThemeColor,
                           child: new Text("保存",style: TextStyle(fontSize: 18.0,color: Colors.white),),
                           onPressed: (){
-                            editRemarks(orderNo,_remarks).then((res){
-                              showHintDialog(context, res['msg']);
+                            //相片处理
+                            addImage(orderNo,orderImages).then((res){
+                              print(res);
+                              postPhoto(orderNo,res).then((res){
+                                print(res);
+                              });
                             });
                           },
                         ),
