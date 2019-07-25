@@ -42,7 +42,6 @@
 		            signingConfig signingConfigs.debug
 		        }
 		    }
-		}
 
 程序崩溃问题：
 	
@@ -56,3 +55,4 @@
 	android.enableJetifier=true
 
 然后菜单栏 Refactor -> Migrate to Androidx 就可以了，Android Studio 会自动把你项目中的依赖切换到 Androidx，并且修改项目中使用到依赖库的路径
+
